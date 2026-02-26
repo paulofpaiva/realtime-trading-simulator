@@ -27,7 +27,14 @@ public class AnalyticsConsumerWorker : BackgroundService
         _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        // Run Kafka consumption on a thread-pool thread so host startup is never blocked
+        // (Subscribe/Consume can block when Kafka is unreachable)
+        return Task.Run(() => RunConsumerAsync(stoppingToken), stoppingToken);
+    }
+
+    private async Task RunConsumerAsync(CancellationToken stoppingToken)
     {
         var bootstrap = _config["Kafka:BootstrapServers"] ?? "localhost:9092";
         var topic = _config["Kafka:AnalyticsTopic"] ?? "asset-analytics";
