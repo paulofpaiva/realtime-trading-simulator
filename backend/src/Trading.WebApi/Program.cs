@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using Trading.WebApi.Data;
 using Trading.WebApi.Hubs;
 using Trading.WebApi.Services;
 using Trading.WebApi.Workers;
@@ -6,6 +8,10 @@ Console.WriteLine("WebApi: starting...");
 var builder = WebApplication.CreateBuilder(args);
 
 builder.WebHost.UseUrls("http://127.0.0.1:5001");
+
+var conn = builder.Configuration.GetConnectionString("Postgres")
+    ?? "Host=localhost;Database=trading;Username=trading;Password=trading";
+builder.Services.AddDbContext<TradingDbContext>(o => o.UseNpgsql(conn));
 
 builder.Services.AddSingleton<LatestAnalyticsStore>();
 builder.Services.AddOpenApi();
@@ -43,6 +49,12 @@ app.UseRouting();
 app.UseCors();
 
 app.MapHub<TradingHub>("/tradingHub");
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<TradingDbContext>();
+    db.Database.EnsureCreated();
+}
 
 app.Lifetime.ApplicationStarted.Register(() =>
 {

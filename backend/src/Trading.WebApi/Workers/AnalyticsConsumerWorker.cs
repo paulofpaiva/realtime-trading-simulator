@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Confluent.Kafka;
 using Trading.Contracts;
-using Trading.WebApi.Hubs;
+using Trading.WebApi.Data;
 using Trading.WebApi.Services;
 
 namespace Trading.WebApi.Workers;
@@ -9,6 +9,7 @@ namespace Trading.WebApi.Workers;
 public class AnalyticsConsumerWorker : BackgroundService
 {
     private readonly LatestAnalyticsStore _store;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConfiguration _config;
     private readonly ILogger<AnalyticsConsumerWorker> _logger;
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -19,10 +20,12 @@ public class AnalyticsConsumerWorker : BackgroundService
 
     public AnalyticsConsumerWorker(
         LatestAnalyticsStore store,
+        IServiceScopeFactory scopeFactory,
         IConfiguration config,
         ILogger<AnalyticsConsumerWorker> logger)
     {
         _store = store;
+        _scopeFactory = scopeFactory;
         _config = config;
         _logger = logger;
     }
@@ -79,6 +82,29 @@ public class AnalyticsConsumerWorker : BackgroundService
                         if (broadcastCount <= 3 || broadcastCount % 100 == 0)
                             _logger.LogInformation("Analytics #{Count}: {Symbol} @ {LastPrice}", broadcastCount, analytics.Symbol, analytics.LastPrice);
                         _store.Set(analytics);
+
+                        try
+                        {
+                            var ts = DateTime.UtcNow;
+                            if (DateTime.TryParse(analytics.Timestamp, null, System.Globalization.DateTimeStyles.RoundtripKind, out var parsed))
+                                ts = parsed.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(parsed, DateTimeKind.Utc) : parsed.ToUniversalTime();
+
+                            using var scope = _scopeFactory.CreateScope();
+                            var db = scope.ServiceProvider.GetRequiredService<TradingDbContext>();
+                            db.AssetAnalytics.Add(new AssetAnalyticsEntity
+                            {
+                                Symbol = analytics.Symbol,
+                                LastPrice = analytics.LastPrice,
+                                MovingAverage5s = analytics.MovingAverage5s,
+                                Volatility = analytics.Volatility,
+                                Timestamp = ts
+                            });
+                            await db.SaveChangesAsync(stoppingToken);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to persist analytics for {Symbol}", analytics.Symbol);
+                        }
                     }
                 }
                 catch (ConsumeException ex)
