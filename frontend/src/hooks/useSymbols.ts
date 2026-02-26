@@ -15,7 +15,7 @@ export function useSymbols() {
         if (!cancelled) setSymbols(data)
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Error al cargar símbolos")
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load symbols")
       })
       .finally(() => {
         if (!cancelled) setLoading(false)

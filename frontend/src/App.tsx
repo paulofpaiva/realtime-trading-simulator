@@ -68,7 +68,7 @@ function App() {
           <aside className="flex flex-col gap-4">
             <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
               <label className="mb-3 block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                Seleccionar símbolo
+                Select Symbol
               </label>
               <SymbolSelect value={symbol} onValueChange={setSymbol} />
             </div>
@@ -79,10 +79,10 @@ function App() {
             <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
               <div className="border-b border-slate-200/80 bg-gradient-to-r from-slate-50 to-slate-100/50 px-5 py-4 dark:border-slate-800 dark:from-slate-800/50 dark:to-slate-800/30">
                 <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Gráfico de precios
+                  Price Chart
                 </h2>
                 <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                  {filtersApplied ? "Datos históricos" : "Tiempo real"} para {symbol ?? "símbolo seleccionado"}
+                  {filtersApplied ? "Historical" : "Real-time"} for {symbol ?? "selected symbol"}
                 </p>
                 <div className="mt-4">
                   <ChartFilters
@@ -103,7 +103,7 @@ function App() {
                 )}
                 {historicalLoading && chartPoints.length === 0 ? (
                   <div className="flex h-[300px] items-center justify-center text-slate-500 dark:text-slate-400">
-                    Cargando datos...
+                    Loading data...
                   </div>
                 ) : (
                   <RealtimeChart data={chartPoints} symbol={symbol} />

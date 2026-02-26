@@ -1,6 +1,13 @@
 # Trading Simulator Frontend
 
-React + Vite + TypeScript frontend for the Real-Time Trading Simulator. Connects to the SignalR hub and displays real-time price charts.
+React + Vite + TypeScript frontend for the Real-Time Trading Simulator. Connects to the SignalR hub for real-time price charts and to the REST API for historical data and symbols.
+
+## Features
+
+- **Real-time charts** — Live price updates via SignalR polling
+- **Historical data** — Fetch past prices from DB with date filters (from/to)
+- **Symbol select** — Symbols loaded from DB (not hardcoded)
+- **Connection status** — Shows connection state to the hub
 
 ## Run
 
@@ -12,13 +19,14 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. The app connects to the SignalR hub at `VITE_HUB_URL` (default `http://localhost:5001/tradingHub`). Ensure the WebApi is running before opening the app.
+Open `http://localhost:5173`. The app connects to the SignalR hub at `VITE_HUB_URL` (default `http://localhost:5001/tradingHub`) and the REST API at `/api` (proxied to WebApi). Ensure the WebApi is running before opening the app.
 
 ## Environment
 
 | Variable       | Description              | Default                          |
 |----------------|--------------------------|----------------------------------|
 | VITE_HUB_URL   | SignalR hub URL          | http://localhost:5001/tradingHub |
+| VITE_API_URL   | REST API base URL (optional) | /api (uses proxy)             |
 
 ## Scripts
 

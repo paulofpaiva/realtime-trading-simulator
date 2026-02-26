@@ -37,7 +37,7 @@ export function useHistoricalAnalytics(
       })
       .catch((err) => {
         if (!cancelled)
-          setError(err instanceof Error ? err.message : "Error al cargar datos históricos")
+          setError(err instanceof Error ? err.message : "Failed to load historical data")
       })
       .finally(() => {
         if (!cancelled) setLoading(false)

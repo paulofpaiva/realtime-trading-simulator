@@ -1,6 +1,6 @@
 # Real-Time Trading Simulator
 
-Real-time asset price simulator: generates synthetic quotes, aggregates metrics (moving average, volatility) via Kafka, and delivers updates to clients via SignalR. Built to demonstrate an event-driven architecture with .NET, Kafka, and React.
+Real-time asset price simulator: generates synthetic quotes, aggregates metrics (moving average, volatility) via Kafka, persists to PostgreSQL, and delivers updates to clients via SignalR. Built to demonstrate an event-driven architecture with .NET, Kafka, and React.
 
 ---
 
@@ -13,7 +13,9 @@ Real-time asset price simulator: generates synthetic quotes, aggregates metrics 
   - 5s moving average,
   - volatility (standard deviation over the window).
 - **Publishes** these metrics to the `asset-analytics` topic.
-- **Web API** consumes `asset-analytics`, stores latest analytics, and exposes them via **SignalR** hub (method `GetLatestAnalytics` for polling; `ReceivePriceUpdate` on connect).
+- **Web API** consumes `asset-analytics`, stores latest analytics in memory, **persists every message to PostgreSQL**, and exposes:
+  - **SignalR** hub at `/tradingHub` (method `GetLatestAnalytics` for polling; `ReceivePriceUpdate` on connect).
+  - **REST API** at `/api/symbols` and `/api/analytics/{symbol}` for historical data and symbols.
 - **React frontend** connects to the SignalR hub and polls every 300 ms for real-time charts.
 
 ---
@@ -22,10 +24,11 @@ Real-time asset price simulator: generates synthetic quotes, aggregates metrics 
 
 | Layer         | Technology |
 |---------------|------------|
-| Backend       | .NET 9, ASP.NET Core, SignalR, Confluent.Kafka, BackgroundService |
+| Backend       | .NET 9, ASP.NET Core, SignalR, Confluent.Kafka, EF Core, BackgroundService |
 | Contracts     | `Trading.Contracts` (AssetPrice, AssetAnalytics) |
 | Services      | Trading.PriceGenerator, Trading.Aggregator, Trading.WebApi |
 | Frontend      | React 18+, Vite, TypeScript, SignalR client, Recharts |
+| Database      | PostgreSQL 16 (EF Core + Npgsql) |
 | Infra         | Kafka, Zookeeper, Kafka UI, PostgreSQL 16, Docker / Docker Compose |
 | Config        | `.env` (ports, credentials); appsettings in .NET projects |
 
@@ -34,12 +37,23 @@ Real-time asset price simulator: generates synthetic quotes, aggregates metrics 
 ## Architecture (data flow)
 
 ```
-PriceGenerator  →  [Kafka: asset-price]  →  Aggregator  →  [Kafka: asset-analytics]  →  WebApi  →  SignalR Hub  →  Frontend
+PriceGenerator  →  [Kafka: asset-price]  →  Aggregator  →  [Kafka: asset-analytics]  →  WebApi  →  PostgreSQL (persist)
+                                                                                     ↘  SignalR Hub  →  Frontend
+                                                                                     ↘  REST API  →  Frontend
 ```
 
 - **PriceGenerator**: Worker that publishes to `asset-price`.
 - **Aggregator**: Consumer of `asset-price`, publisher to `asset-analytics`.
-- **WebApi**: Consumer of `asset-analytics`, stores in `LatestAnalyticsStore`, SignalR hub at `/tradingHub` with `GetLatestAnalytics` (polling) and `ReceivePriceUpdate` (on connect).
+- **WebApi**: Consumer of `asset-analytics`, stores in `LatestAnalyticsStore`, persists to PostgreSQL, SignalR hub at `/tradingHub`, REST API at `/api`.
+
+---
+
+## Database (PostgreSQL)
+
+- **Tables**: `asset_analytics` (price history), `symbols` (seeded with BTC, ETH, AAPL, TSLA).
+- **Connection string**: `Host=localhost;Database=trading;Username=trading;Password=trading` (from `appsettings.json` or `.env`).
+- **Persistence**: Every analytics message from Kafka is appended to `asset_analytics`.
+- **REST API**: `GET /api/symbols` lists symbols from DB; `GET /api/analytics/{symbol}?from=&to=&limit=` returns historical data with optional date filters.
 
 ---
 
@@ -53,7 +67,7 @@ realtime-trading-simulator/
 │       ├── Trading.Contracts/  # AssetPrice, AssetAnalytics models
 │       ├── Trading.PriceGenerator/
 │       ├── Trading.Aggregator/
-│       └── Trading.WebApi/     # API + SignalR hub
+│       └── Trading.WebApi/    # API + SignalR hub + EF Core + PostgreSQL
 ├── frontend/                   # React + Vite
 ├── infra/                      # Docker Compose (Kafka, Zookeeper, Kafka UI, Postgres)
 ├── .env.example                # Example env vars (infra ports, etc.)
@@ -112,14 +126,14 @@ cd backend/src/Trading.Aggregator
 dotnet run
 ```
 
-**Terminal 3 – Web API (SignalR)**
+**Terminal 3 – Web API (SignalR + REST)**
 
 ```bash
 cd backend/src/Trading.WebApi
 dotnet run
 ```
 
-The WebApi exposes the SignalR hub at `http://localhost:5001/tradingHub`.
+The WebApi exposes the SignalR hub at `http://localhost:5001/tradingHub` and the REST API at `http://localhost:5001/api`.
 
 ### 3. Run frontend
 
@@ -137,7 +151,8 @@ Open `http://localhost:5173`. The default `VITE_HUB_URL` in `.env` is `http://lo
 - **Kafka UI**: `http://localhost:8080`  
   Topics `asset-price` and `asset-analytics` should receive messages in real time.
 - **PostgreSQL**: `localhost:5432`, database `trading`, user/password from `.env` (default `trading`/`trading`).
-- **Frontend**: `http://localhost:5173` — real-time charts and connection status.
+- **Frontend**: `http://localhost:5173` — real-time charts, historical data with date filters, symbol select from DB.
+- **REST API**: `http://localhost:5001/api/symbols`, `http://localhost:5001/api/analytics/BTC?limit=100`.
 
 ---
 
@@ -181,7 +196,7 @@ Frontend `frontend/.env`: `VITE_HUB_URL` — SignalR hub URL (default `http://lo
 - **Backend**: changes on branch `backend-feats`; merge into `main` when stable.
 - **Frontend**: changes on branch `frontend-feats`.
 - Build solution: `cd backend && dotnet build`.
-- Error messages and UI copy must be in **Spanish**; code (names, types) in **English**.
+- Error messages and UI copy must be in **English**; code (names, types) in **English**.
 
 ---
 

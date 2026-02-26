@@ -9,21 +9,21 @@ type PriceSummaryProps = {
 const metricCards = [
   {
     key: "lastPrice",
-    label: "Último precio",
+    label: "Last Price",
     icon: DollarSign,
     bgColor: "bg-emerald-500/10 dark:bg-emerald-500/20",
     format: (v: number) => `$${v.toFixed(2)}`,
   },
   {
     key: "movingAverage5s",
-    label: "Media 5s",
+    label: "5s Average",
     icon: TrendingUp,
     bgColor: "bg-blue-500/10 dark:bg-blue-500/20",
     format: (v: number) => `$${v.toFixed(2)}`,
   },
   {
     key: "volatility",
-    label: "Volatilidad",
+    label: "Volatility",
     icon: Activity,
     bgColor: "bg-amber-500/10 dark:bg-amber-500/20",
     format: (v: number) => v.toFixed(4),
@@ -34,7 +34,7 @@ export function PriceSummary({ analytics, symbol }: PriceSummaryProps) {
   if (!symbol) {
     return (
       <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
-        <p className="text-sm text-slate-500 dark:text-slate-400">Selecciona un símbolo para ver las métricas</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Select a symbol to view metrics</p>
       </div>
     )
   }

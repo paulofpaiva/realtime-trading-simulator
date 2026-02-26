@@ -16,7 +16,7 @@ export interface AnalyticsDto {
 
 export async function fetchSymbols(): Promise<SymbolDto[]> {
   const res = await fetch(`${API_BASE}/symbols`)
-  if (!res.ok) throw new Error("Error al cargar símbolos")
+  if (!res.ok) throw new Error("Failed to load symbols")
   return res.json()
 }
 
@@ -31,7 +31,7 @@ export async function fetchAnalytics(
   const qs = params.toString()
   const url = `${API_BASE}/analytics/${encodeURIComponent(symbol)}${qs ? `?${qs}` : ""}`
   const res = await fetch(url)
-  if (!res.ok) throw new Error("Error al cargar datos históricos")
+  if (!res.ok) throw new Error("Failed to load historical data")
   const data = await res.json()
   return data.map((a: AnalyticsDto) => ({
     ...a,

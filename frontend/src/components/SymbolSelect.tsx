@@ -31,7 +31,7 @@ export function SymbolSelect({ value, onValueChange, disabled }: SymbolSelectPro
       disabled={disabled || loading}
     >
       <SelectTrigger className="w-full border-slate-200 bg-slate-50 font-medium dark:border-slate-700 dark:bg-slate-800/50">
-        <SelectValue placeholder={loading ? "Cargando..." : "Seleccionar símbolo"} />
+        <SelectValue placeholder={loading ? "Loading..." : "Select symbol"} />
       </SelectTrigger>
       <SelectContent>
         {symbols.map((s) => (

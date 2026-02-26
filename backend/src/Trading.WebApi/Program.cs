@@ -14,6 +14,7 @@ var conn = builder.Configuration.GetConnectionString("Postgres")
 builder.Services.AddDbContext<TradingDbContext>(o => o.UseNpgsql(conn));
 
 builder.Services.AddSingleton<LatestAnalyticsStore>();
+builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddSignalR()
     .AddJsonProtocol(options =>
@@ -49,11 +50,13 @@ app.UseRouting();
 app.UseCors();
 
 app.MapHub<TradingHub>("/tradingHub");
+app.MapControllers();
 
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<TradingDbContext>();
     db.Database.EnsureCreated();
+    DbInitializer.EnsureSymbolsTable(db);
 }
 
 app.Lifetime.ApplicationStarted.Register(() =>
