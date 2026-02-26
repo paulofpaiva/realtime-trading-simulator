@@ -10,6 +10,7 @@ public class TradingDbContext : DbContext
     }
 
     public DbSet<AssetAnalyticsEntity> AssetAnalytics => Set<AssetAnalyticsEntity>();
+    public DbSet<SymbolEntity> Symbols => Set<SymbolEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -24,6 +25,16 @@ public class TradingDbContext : DbContext
             e.Property(x => x.Volatility).IsRequired();
             e.Property(x => x.Timestamp).IsRequired();
             e.HasIndex(x => new { x.Symbol, x.Timestamp });
+        });
+
+        modelBuilder.Entity<SymbolEntity>(e =>
+        {
+            e.ToTable("symbols");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).UseIdentityByDefaultColumn();
+            e.Property(x => x.Symbol).HasMaxLength(32).IsRequired();
+            e.Property(x => x.DisplayName).HasMaxLength(128);
+            e.HasIndex(x => x.Symbol).IsUnique();
         });
     }
 }

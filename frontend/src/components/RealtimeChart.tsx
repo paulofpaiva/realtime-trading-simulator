@@ -33,7 +33,7 @@ export function RealtimeChart({ data, symbol }: RealtimeChartProps) {
   if (!symbol) {
     return (
       <div className="flex h-[300px] items-center justify-center rounded-xl bg-slate-100/50 text-slate-500 dark:bg-slate-800/30 dark:text-slate-400">
-        Select a symbol to view the chart
+        Selecciona un símbolo para ver el gráfico
       </div>
     )
   }
