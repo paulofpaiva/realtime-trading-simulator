@@ -1,81 +1,81 @@
 # Real-Time Trading Simulator
 
-Simulador de preços de ativos em tempo real: gera cotações sintéticas, agrega métricas (média móvel, volatilidade) via Kafka e entrega atualizações ao cliente via SignalR. Pensado para demonstração de arquitetura event-driven com .NET, Kafka e React.
+Real-time asset price simulator: generates synthetic quotes, aggregates metrics (moving average, volatility) via Kafka, and delivers updates to clients via SignalR. Built to demonstrate an event-driven architecture with .NET, Kafka, and React.
 
 ---
 
-## O que o app faz
+## What the app does
 
-- **Gera preços simulados** para os símbolos **BTC**, **ETH**, **AAPL** e **TSLA** a cada 50 ms, com random walk entre −0,5% e +0,5%.
-- **Publica** cada preço no tópico Kafka `asset-price` (chave = símbolo).
-- **Agregador** consome `asset-price`, mantém janela deslizante de 5 segundos por símbolo e calcula:
-  - último preço,
-  - média móvel 5s,
-  - volatilidade (desvio padrão na janela).
-- **Publica** essas métricas no tópico `asset-analytics`.
-- **Web API** consome `asset-analytics` e envia cada atualização para todos os clientes conectados via **SignalR** (método `ReceivePriceUpdate`).
-- **(Em construção)** Frontend React conectado ao hub SignalR para exibir gráficos em tempo real.
+- **Generates simulated prices** for **BTC**, **ETH**, **AAPL**, and **TSLA** every 50 ms, using a random walk between −0.5% and +0.5%.
+- **Publishes** each price to the Kafka topic `asset-price` (key = symbol).
+- **Aggregator** consumes `asset-price`, keeps a 5-second sliding window per symbol, and computes:
+  - last price,
+  - 5s moving average,
+  - volatility (standard deviation over the window).
+- **Publishes** these metrics to the `asset-analytics` topic.
+- **Web API** consumes `asset-analytics` and pushes each update to all connected clients via **SignalR** (method `ReceivePriceUpdate`).
+- **(In progress)** React frontend connected to the SignalR hub to display real-time charts.
 
 ---
 
 ## Stack
 
-| Camada        | Tecnologia |
+| Layer         | Technology |
 |---------------|------------|
 | Backend       | .NET 9, ASP.NET Core, SignalR, Confluent.Kafka, BackgroundService |
-| Contratos     | `Trading.Contracts` (AssetPrice, AssetAnalytics) |
-| Serviços      | Trading.PriceGenerator, Trading.Aggregator, Trading.WebApi |
-| Frontend      | React 18+, Vite, TypeScript, SignalR client, Recharts ou ApexCharts (planejado) |
+| Contracts     | `Trading.Contracts` (AssetPrice, AssetAnalytics) |
+| Services      | Trading.PriceGenerator, Trading.Aggregator, Trading.WebApi |
+| Frontend      | React 18+, Vite, TypeScript, SignalR client, Recharts or ApexCharts (planned) |
 | Infra         | Kafka, Zookeeper, Kafka UI, PostgreSQL 16, Docker / Docker Compose |
-| Configuração  | `.env` (portas, credenciais); appsettings nos projetos .NET |
+| Config        | `.env` (ports, credentials); appsettings in .NET projects |
 
 ---
 
-## Arquitetura (fluxo de dados)
+## Architecture (data flow)
 
 ```
 PriceGenerator  →  [Kafka: asset-price]  →  Aggregator  →  [Kafka: asset-analytics]  →  WebApi  →  SignalR Hub  →  (Frontend)
 ```
 
-- **PriceGenerator**: Worker que publica em `asset-price`.
-- **Aggregator**: Consumidor de `asset-price`, publicador em `asset-analytics`.
-- **WebApi**: Consumidor de `asset-analytics`, hub SignalR em `/tradingHub`, broadcast `ReceivePriceUpdate`.
+- **PriceGenerator**: Worker that publishes to `asset-price`.
+- **Aggregator**: Consumer of `asset-price`, publisher to `asset-analytics`.
+- **WebApi**: Consumer of `asset-analytics`, SignalR hub at `/tradingHub`, broadcasts `ReceivePriceUpdate`.
 
 ---
 
-## Estrutura do repositório
+## Repository structure
 
 ```
 realtime-trading-simulator/
-├── backend/                    # Solução .NET 9
+├── backend/                    # .NET 9 solution
 │   ├── TradingSimulator.sln
 │   └── src/
-│       ├── Trading.Contracts/  # Modelos AssetPrice, AssetAnalytics
+│       ├── Trading.Contracts/  # AssetPrice, AssetAnalytics models
 │       ├── Trading.PriceGenerator/
 │       ├── Trading.Aggregator/
 │       └── Trading.WebApi/     # API + SignalR hub
-├── frontend/                   # React + Vite (em construção)
+├── frontend/                   # React + Vite (in progress)
 ├── infra/                      # Docker Compose (Kafka, Zookeeper, Kafka UI, Postgres)
-├── .env.example                # Variáveis de ambiente de exemplo
-├── .env                        # Suas variáveis (não versionado)
+├── .env.example                # Example environment variables
+├── .env                        # Your local env (not versioned)
 └── README.MD
 ```
 
 ---
 
-## Pré-requisitos
+## Prerequisites
 
-- **Docker** e **Docker Compose v2** (para infraestrutura).
-- **.NET 9 SDK** (para rodar os serviços backend localmente).
-- *(Opcional)* Node.js 18+ quando o frontend estiver disponível.
+- **Docker** and **Docker Compose v2** (for infrastructure).
+- **.NET 9 SDK** (to run backend services locally).
+- *(Optional)* Node.js 18+ when the frontend is available.
 
 ---
 
-## Como rodar
+## How to run
 
-### 1. Subir a infraestrutura (Docker)
+### 1. Start infrastructure (Docker)
 
-Na raiz do repositório:
+From the repository root:
 
 ```bash
 cp .env.example .env
@@ -83,22 +83,22 @@ cd infra
 docker compose up -d
 ```
 
-Isso sobe:
+This starts:
 
-- **Zookeeper** (porta 2181)
-- **Kafka** (9092 para clientes no host, 29092 interno)
+- **Zookeeper** (port 2181)
+- **Kafka** (9092 for host clients, 29092 internal)
 - **Kafka UI** (8080)
-- **PostgreSQL** (5432, DB `trading`, user/senha conforme `.env`)
+- **PostgreSQL** (5432, DB `trading`, user/password per `.env`)
 
-Verificar containers:
+Check containers:
 
 ```bash
 docker compose ps
 ```
 
-### 2. Rodar os serviços backend (desenvolvimento local)
+### 2. Run backend services (local development)
 
-Com a infraestrutura no ar, abra **três terminais** na raiz do repo:
+With infrastructure up, open **three terminals** from the repo root:
 
 **Terminal 1 – Price Generator**
 
@@ -121,62 +121,62 @@ cd backend/src/Trading.WebApi
 dotnet run
 ```
 
-A WebApi expõe o hub SignalR em `http://localhost:5000/tradingHub` (ou na porta configurada em `ASPNETCORE_URLS`).
+The WebApi exposes the SignalR hub at `http://localhost:5000/tradingHub` (or the port set in `ASPNETCORE_URLS`).
 
-### 3. Conferir o fluxo
+### 3. Verify the flow
 
 - **Kafka UI**: `http://localhost:8080`  
-  - Tópicos `asset-price` e `asset-analytics` devem receber mensagens em tempo real.
-- **PostgreSQL**: `localhost:5432`, database `trading`, usuário/senha do `.env` (por padrão `trading`/`trading`).
+  Topics `asset-price` and `asset-analytics` should receive messages in real time.
+- **PostgreSQL**: `localhost:5432`, database `trading`, user/password from `.env` (default `trading`/`trading`).
 
-Quando o frontend estiver pronto, ele se conectará ao hub e exibirá os gráficos em tempo real.
-
----
-
-## Variáveis de ambiente (`.env`)
-
-O arquivo `.env.example` lista as variáveis usadas pelo `infra/docker-compose.yml`:
-
-| Variável              | Descrição                         | Padrão  |
-|------------------------|-----------------------------------|---------|
-| ZOOKEEPER_PORT         | Porta do Zookeeper                | 2181    |
-| KAFKA_EXTERNAL_PORT    | Porta do Kafka (host)             | 9092    |
-| KAFKA_INTERNAL_PORT    | Porta do Kafka (rede Docker)      | 29092   |
-| KAFKA_UI_PORT          | Porta do Kafka UI                 | 8080    |
-| POSTGRES_DB            | Nome do banco PostgreSQL          | trading |
-| POSTGRES_USER          | Usuário PostgreSQL                | trading |
-| POSTGRES_PASSWORD      | Senha PostgreSQL                  | trading |
-| POSTGRES_PORT          | Porta do PostgreSQL               | 5432    |
-| WEBAPI_PORT            | Porta da WebApi (futuro)          | 5000    |
-| FRONTEND_PORT          | Porta do frontend (futuro)        | 5173    |
-
-Copie `.env.example` para `.env` e ajuste se necessário. Os serviços .NET leem Kafka e Postgres via `appsettings.json` (e, em Docker, via variáveis de ambiente quando configurado).
+When the frontend is ready, it will connect to the hub and display real-time charts.
 
 ---
 
-## Portas em uso
+## Environment variables (`.env`)
 
-| Serviço        | Porta (padrão) | Uso                    |
-|----------------|----------------|------------------------|
-| Zookeeper      | 2181           | Kafka coordination     |
-| Kafka          | 9092           | Clientes no host       |
-| Kafka (interno)| 29092          | Clientes na rede Docker|
-| Kafka UI       | 8080           | Interface web          |
-| PostgreSQL     | 5432           | Banco de dados         |
-| WebApi         | 5000           | API + SignalR hub      |
-| Frontend       | 5173           | App React (futuro)      |
+The `.env.example` file lists the variables used by `infra/docker-compose.yml`:
 
----
+| Variable              | Description                      | Default |
+|-----------------------|----------------------------------|---------|
+| ZOOKEEPER_PORT        | Zookeeper port                   | 2181    |
+| KAFKA_EXTERNAL_PORT   | Kafka port (host)                | 9092    |
+| KAFKA_INTERNAL_PORT   | Kafka port (Docker network)      | 29092   |
+| KAFKA_UI_PORT         | Kafka UI port                    | 8080    |
+| POSTGRES_DB           | PostgreSQL database name         | trading |
+| POSTGRES_USER         | PostgreSQL user                  | trading |
+| POSTGRES_PASSWORD     | PostgreSQL password              | trading |
+| POSTGRES_PORT         | PostgreSQL port                  | 5432    |
+| WEBAPI_PORT           | WebApi port (future)             | 5000    |
+| FRONTEND_PORT         | Frontend port (future)           | 5173    |
 
-## Desenvolvimento
-
-- **Backend**: alterações na branch `backend-feats`; merge para `main` quando estável.
-- **Frontend**: alterações na branch `frontend-feats`.
-- Build da solução: `cd backend && dotnet build`.
-- Mensagens e UI de erro devem estar em **espanhol**; código (nomes, tipos) em **inglês**.
+Copy `.env.example` to `.env` and adjust if needed. .NET services read Kafka and Postgres from `appsettings.json` (and from environment variables when running in Docker, when configured).
 
 ---
 
-## Licença
+## Ports in use
 
-Uso conforme definido no repositório.
+| Service       | Port (default) | Purpose                |
+|---------------|----------------|------------------------|
+| Zookeeper     | 2181           | Kafka coordination     |
+| Kafka         | 9092           | Host clients           |
+| Kafka (internal) | 29092       | Docker network clients |
+| Kafka UI      | 8080           | Web UI                 |
+| PostgreSQL    | 5432           | Database               |
+| WebApi        | 5000           | API + SignalR hub       |
+| Frontend      | 5173           | React app (future)      |
+
+---
+
+## Development
+
+- **Backend**: changes on branch `backend-feats`; merge into `main` when stable.
+- **Frontend**: changes on branch `frontend-feats`.
+- Build solution: `cd backend && dotnet build`.
+- Error messages and UI copy must be in **Spanish**; code (names, types) in **English**.
+
+---
+
+## License
+
+As defined in the repository.
