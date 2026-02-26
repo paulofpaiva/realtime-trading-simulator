@@ -13,8 +13,8 @@ Real-time asset price simulator: generates synthetic quotes, aggregates metrics 
   - 5s moving average,
   - volatility (standard deviation over the window).
 - **Publishes** these metrics to the `asset-analytics` topic.
-- **Web API** consumes `asset-analytics` and pushes each update to all connected clients via **SignalR** (method `ReceivePriceUpdate`).
-- **React frontend** connected to the SignalR hub to display real-time charts.
+- **Web API** consumes `asset-analytics`, stores latest analytics, and exposes them via **SignalR** hub (method `GetLatestAnalytics` for polling; `ReceivePriceUpdate` on connect).
+- **React frontend** connects to the SignalR hub and polls every 300 ms for real-time charts.
 
 ---
 
@@ -39,7 +39,7 @@ PriceGenerator  →  [Kafka: asset-price]  →  Aggregator  →  [Kafka: asset-a
 
 - **PriceGenerator**: Worker that publishes to `asset-price`.
 - **Aggregator**: Consumer of `asset-price`, publisher to `asset-analytics`.
-- **WebApi**: Consumer of `asset-analytics`, SignalR hub at `/tradingHub`, broadcasts `ReceivePriceUpdate`.
+- **WebApi**: Consumer of `asset-analytics`, stores in `LatestAnalyticsStore`, SignalR hub at `/tradingHub` with `GetLatestAnalytics` (polling) and `ReceivePriceUpdate` (on connect).
 
 ---
 
@@ -56,8 +56,8 @@ realtime-trading-simulator/
 │       └── Trading.WebApi/     # API + SignalR hub
 ├── frontend/                   # React + Vite
 ├── infra/                      # Docker Compose (Kafka, Zookeeper, Kafka UI, Postgres)
-├── .env.example                # Example environment variables
-├── .env                        # Your local env (not versioned)
+├── .env.example                # Example env vars (infra ports, etc.)
+├── .env                        # Local env (not versioned, copy from .env.example)
 └── README.MD
 ```
 
@@ -79,9 +79,13 @@ From the repository root:
 
 ```bash
 cp .env.example .env
+cp .env infra/.env
 cd infra
 docker compose up -d
+docker compose ps
 ```
+
+Or, if you prefer a single `.env` in the root, run from `infra/` with: `docker compose --env-file ../.env up -d`.
 
 This starts:
 
@@ -90,15 +94,9 @@ This starts:
 - **Kafka UI** (8080)
 - **PostgreSQL** (5432, DB `trading`, user/password per `.env`)
 
-Check containers:
-
-```bash
-docker compose ps
-```
-
 ### 2. Run backend services (local development)
 
-With infrastructure up, open **three terminals** from the repo root:
+With infrastructure up, open **three terminals** from the repo root. Start in this order:
 
 **Terminal 1 – Price Generator**
 
@@ -118,11 +116,10 @@ dotnet run
 
 ```bash
 cd backend/src/Trading.WebApi
-dotnet build
-dotnet run --no-build
+dotnet run
 ```
 
-The WebApi exposes the SignalR hub at `http://localhost:5000/tradingHub` (or the port set in `ASPNETCORE_URLS`).
+The WebApi exposes the SignalR hub at `http://localhost:5001/tradingHub`.
 
 ### 3. Run frontend
 
@@ -133,7 +130,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. Set `VITE_HUB_URL` in `.env` if the hub runs on a different URL (default `http://localhost:5000`).
+Open `http://localhost:5173`. The default `VITE_HUB_URL` in `.env` is `http://localhost:5001/tradingHub`. Change it if the WebApi runs on a different host/port.
 
 ### 4. Verify the flow
 
@@ -158,10 +155,10 @@ The `.env.example` file lists the variables used by `infra/docker-compose.yml`:
 | POSTGRES_USER         | PostgreSQL user                  | trading |
 | POSTGRES_PASSWORD     | PostgreSQL password              | trading |
 | POSTGRES_PORT         | PostgreSQL port                  | 5432    |
-| WEBAPI_PORT           | WebApi port                      | 5000    |
+| WEBAPI_PORT           | WebApi port                      | 5001    |
 | FRONTEND_PORT         | Frontend port                    | 5173    |
 
-Frontend `.env`: `VITE_HUB_URL` — SignalR hub URL (default `http://localhost:5000`).
+Frontend `frontend/.env`: `VITE_HUB_URL` — SignalR hub URL (default `http://localhost:5001/tradingHub`).
 
 ---
 
@@ -174,7 +171,7 @@ Frontend `.env`: `VITE_HUB_URL` — SignalR hub URL (default `http://localhost:5
 | Kafka (internal) | 29092       | Docker network clients |
 | Kafka UI      | 8080           | Web UI                 |
 | PostgreSQL    | 5432           | Database               |
-| WebApi        | 5000           | API + SignalR hub      |
+| WebApi        | 5001           | API + SignalR hub      |
 | Frontend      | 5173           | React app               |
 
 ---
