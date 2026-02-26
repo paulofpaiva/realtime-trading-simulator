@@ -81,16 +81,16 @@ public class Worker : BackgroundService
                         var movingAvg = window.Average(x => x.Price);
                         var volatility = ComputeVolatility(window.Select(x => x.Price).ToList());
 
-                        var analytics = new AssetAnalytics
-                        {
-                            Symbol = symbol,
-                            LastPrice = lastPrice,
-                            MovingAverage5s = movingAvg,
-                            Volatility = volatility,
-                            Timestamp = DateTime.UtcNow
-                        };
+                        var analytics = new AssetAnalytics(
+                            symbol,
+                            (double)lastPrice,
+                            (double)movingAvg,
+                            (double)volatility,
+                            DateTime.UtcNow.ToString("o")
+                        );
 
-                        var analyticsJson = JsonSerializer.Serialize(analytics);
+                        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+                        var analyticsJson = JsonSerializer.Serialize(analytics, options);
                         _producer.Produce(assetAnalyticsTopic, new Message<string, string>
                         {
                             Key = symbol,

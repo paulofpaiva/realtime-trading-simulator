@@ -40,16 +40,20 @@ public class AnalyticsConsumerWorker : BackgroundService
         var topic = _config["Kafka:AnalyticsTopic"] ?? "asset-analytics";
         var group = _config["Kafka:ConsumerGroup"] ?? "trading-webapi";
 
+        _logger.LogInformation("AnalyticsConsumer connecting to {Bootstrap}, topic={Topic}, group={Group}", bootstrap, topic, group);
+
         var conf = new ConsumerConfig
         {
             BootstrapServers = bootstrap,
             GroupId = group,
-            AutoOffsetReset = AutoOffsetReset.Earliest,
+            AutoOffsetReset = AutoOffsetReset.Latest,
         };
 
         using var consumer = new ConsumerBuilder<Ignore, string>(conf).Build();
         consumer.Subscribe(topic);
+        _logger.LogInformation("AnalyticsConsumer subscribed to {Topic}", topic);
 
+        var messageCount = 0;
         try
         {
             while (!stoppingToken.IsCancellationRequested)
@@ -73,6 +77,9 @@ public class AnalyticsConsumerWorker : BackgroundService
                     }
 
                     await _hub.Clients.All.SendAsync("ReceivePriceUpdate", json, stoppingToken);
+                    messageCount++;
+                    if (messageCount <= 3 || messageCount % 500 == 0)
+                        _logger.LogInformation("SignalR broadcast #{Count}: {Json}", messageCount, json[..Math.Min(json.Length, 120)]);
                 }
                 catch (ConsumeException ex)
                 {

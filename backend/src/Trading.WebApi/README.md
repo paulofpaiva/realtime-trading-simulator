@@ -12,7 +12,7 @@ dotnet build
 dotnet run --no-build
 ```
 
-When the app is ready you'll see: `WebApi: ready at http://localhost:5000/tradingHub`
+When the app is ready you'll see: `WebApi: ready at http://localhost:5001/tradingHub`
 
 **Single command from this folder:**
 

@@ -8,8 +8,9 @@ import type { Symbol } from "@/types/analytics"
 
 function App() {
   const [symbol, setSymbol] = useState<Symbol | null>("BTC")
-  const { connectionState, pointsBySymbol, lastUpdate } = useTradingHub()
+  const { connectionState, pointsBySymbol, lastUpdateBySymbol } = useTradingHub()
   const points = symbol ? pointsBySymbol[symbol] ?? [] : []
+  const lastForSymbol = symbol ? lastUpdateBySymbol[symbol] ?? null : null
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-6">
@@ -26,7 +27,7 @@ function App() {
             </label>
             <SymbolSelect value={symbol} onValueChange={setSymbol} />
           </div>
-          <PriceSummary analytics={lastUpdate} symbol={symbol} />
+          <PriceSummary analytics={lastForSymbol} symbol={symbol} />
         </div>
 
         <div className="rounded-lg border border-border bg-card p-4">
