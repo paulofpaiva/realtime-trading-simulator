@@ -1,5 +1,7 @@
 # Real-Time Trading Simulator
 
+<img src="realtime-trading-simulator.png" alt="Real-Time Trading Simulator" width="600" />
+
 Real-time asset price simulator: generates synthetic quotes, aggregates metrics (moving average, volatility) via Kafka, persists to PostgreSQL, and delivers updates to clients via SignalR. Built to demonstrate an event-driven architecture with .NET, Kafka, and React.
 
 ---
