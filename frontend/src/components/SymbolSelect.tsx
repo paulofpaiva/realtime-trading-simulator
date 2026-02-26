@@ -21,7 +21,7 @@ export function SymbolSelect({ value, onValueChange, disabled }: SymbolSelectPro
       disabled={disabled}
     >
       <SelectTrigger className="w-[140px]">
-        <SelectValue placeholder="Símbolo" />
+        <SelectValue placeholder="Symbol" />
       </SelectTrigger>
       <SelectContent>
         {SYMBOLS.map((s) => (

@@ -18,7 +18,7 @@ type RealtimeChartProps = {
 function formatTime(iso: string) {
   try {
     const d = new Date(iso)
-    return d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+    return d.toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
   } catch {
     return iso
   }
@@ -33,7 +33,7 @@ export function RealtimeChart({ data, symbol }: RealtimeChartProps) {
   if (!symbol) {
     return (
       <div className="flex h-[300px] items-center justify-center rounded-lg border border-border bg-muted/30 text-muted-foreground">
-        Seleccione un símbolo para ver el gráfico
+        Select a symbol to view the chart
       </div>
     )
   }
@@ -70,7 +70,7 @@ export function RealtimeChart({ data, symbol }: RealtimeChartProps) {
             }
             formatter={(value: unknown, name?: string) => [
               typeof value === "number" ? value.toFixed(name === "volatility" ? 4 : 2) : String(value),
-              name === "price" ? "Precio" : name === "ma" ? "Media 5s" : "Volatilidad",
+              name === "price" ? "Price" : name === "ma" ? "5s average" : "Volatility",
             ]}
           />
           <Legend />
@@ -78,7 +78,7 @@ export function RealtimeChart({ data, symbol }: RealtimeChartProps) {
             yAxisId="price"
             type="monotone"
             dataKey="price"
-            name="Precio"
+            name="Price"
             stroke="var(--chart-1)"
             strokeWidth={2}
             dot={false}
@@ -87,7 +87,7 @@ export function RealtimeChart({ data, symbol }: RealtimeChartProps) {
             yAxisId="price"
             type="monotone"
             dataKey="ma"
-            name="Media 5s"
+            name="5s average"
             stroke="var(--chart-2)"
             strokeWidth={1.5}
             strokeDasharray="4 4"
@@ -97,7 +97,7 @@ export function RealtimeChart({ data, symbol }: RealtimeChartProps) {
             yAxisId="vol"
             type="monotone"
             dataKey="volatility"
-            name="Volatilidad"
+            name="Volatility"
             stroke="var(--chart-3)"
             strokeWidth={1.5}
             dot={false}

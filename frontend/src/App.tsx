@@ -22,7 +22,7 @@ function App() {
         <div className="flex flex-wrap items-end gap-4">
           <div>
             <label className="mb-1.5 block text-sm text-muted-foreground">
-              Símbolo
+              Symbol
             </label>
             <SymbolSelect value={symbol} onValueChange={setSymbol} />
           </div>
@@ -31,7 +31,7 @@ function App() {
 
         <div className="rounded-lg border border-border bg-card p-4">
           <h2 className="mb-2 text-sm font-medium text-muted-foreground">
-            Precio y volatilidad en tiempo real
+            Real-time price and volatility
           </h2>
           <RealtimeChart data={points} symbol={symbol} />
         </div>

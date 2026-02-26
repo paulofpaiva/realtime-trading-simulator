@@ -11,7 +11,7 @@ export function PriceSummary({ analytics, symbol }: PriceSummaryProps) {
     return (
       <Card className="w-full max-w-md">
         <CardHeader className="pb-2">
-          <span className="text-muted-foreground">Seleccione un símbolo</span>
+          <span className="text-muted-foreground">Select a symbol</span>
         </CardHeader>
       </Card>
     )
@@ -25,19 +25,19 @@ export function PriceSummary({ analytics, symbol }: PriceSummaryProps) {
       </CardHeader>
       <CardContent className="space-y-1 text-sm">
         <div className="flex justify-between">
-          <span className="text-muted-foreground">Último</span>
+          <span className="text-muted-foreground">Last</span>
           <span className="font-mono tabular-nums">
             {last ? last.lastPrice.toFixed(2) : "—"}
           </span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">Media 5s</span>
+          <span className="text-muted-foreground">5s average</span>
           <span className="font-mono tabular-nums">
             {last ? last.movingAverage5s.toFixed(2) : "—"}
           </span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">Volatilidad</span>
+          <span className="text-muted-foreground">Volatility</span>
           <span className="font-mono tabular-nums">
             {last ? last.volatility.toFixed(4) : "—"}
           </span>
