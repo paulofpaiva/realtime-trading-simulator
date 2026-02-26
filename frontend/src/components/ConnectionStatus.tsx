@@ -6,10 +6,10 @@ type ConnectionStatusProps = {
 
 const labels: Record<HubConnectionState, string> = {
   Connected: "Connected",
-  Connecting: "Connecting…",
+  Connecting: "Connecting",
   Disconnected: "Disconnected",
-  Disconnecting: "Disconnecting…",
-  Reconnecting: "Reconnecting…",
+  Disconnecting: "Disconnecting",
+  Reconnecting: "Reconnecting",
 }
 
 const colors: Record<HubConnectionState, string> = {

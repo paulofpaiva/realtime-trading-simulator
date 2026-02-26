@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.SignalR;
 using Trading.WebApi.Hubs;
 using Trading.WebApi.Workers;
 
@@ -8,7 +7,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://127.0.0.1:5001");
 
 builder.Services.AddOpenApi();
-builder.Services.AddSignalR();
+builder.Services.AddSignalR()
+    .AddJsonProtocol(options =>
+    {
+        options.PayloadSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 builder.Services.AddCors(options =>
 {
     var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
@@ -25,8 +28,6 @@ builder.Services.AddHostedService<AnalyticsConsumerWorker>();
 
 var app = builder.Build();
 
-app.UseCors();
-
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -37,14 +38,9 @@ else
 }
 
 app.UseRouting();
-app.MapHub<TradingHub>("/tradingHub");
+app.UseCors();
 
-app.MapGet("/test-signal", async (IHubContext<Trading.WebApi.Hubs.TradingHub> hub) =>
-{
-    var testJson = """{"symbol":"BTC","lastPrice":50000.0,"movingAverage5s":49999.0,"volatility":0.1234,"timestamp":"2026-02-26T00:00:00Z"}""";
-    await hub.Clients.All.SendAsync("ReceivePriceUpdate", testJson);
-    return Results.Ok(new { sent = testJson });
-});
+app.MapHub<TradingHub>("/tradingHub");
 
 app.Lifetime.ApplicationStarted.Register(() =>
 {

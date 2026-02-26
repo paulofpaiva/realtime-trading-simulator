@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useEffect, useSyncExternalStore } from "react"
 import * as signalR from "@microsoft/signalr"
 import type { AssetAnalytics } from "@/types/analytics"
 
@@ -7,107 +7,145 @@ const MAX_POINTS_PER_SYMBOL = 100
 
 export type PricePoint = { time: string; price: number; ma: number; volatility: number }
 
-function parsePayload(value: string): AssetAnalytics | null {
+type Snapshot = {
+  connectionState: signalR.HubConnectionState
+  pointsBySymbol: Record<string, PricePoint[]>
+  lastUpdateBySymbol: Record<string, AssetAnalytics>
+}
+
+const store: Snapshot = {
+  connectionState: signalR.HubConnectionState.Disconnected,
+  pointsBySymbol: {},
+  lastUpdateBySymbol: {},
+}
+
+const subscribers = new Set<() => void>()
+
+function emit() {
+  for (const cb of subscribers) cb()
+}
+
+function toAnalytics(payload: unknown): AssetAnalytics | null {
   try {
-    const raw = JSON.parse(value) as Record<string, unknown>
+    if (typeof payload === "string") {
+      return toAnalytics(JSON.parse(payload))
+    }
+
+    if (!payload || typeof payload !== "object") return null
+    const raw = payload as Record<string, unknown>
+
+    const symbol = raw.symbol ?? raw.Symbol
+    if (typeof symbol !== "string" || !symbol) return null
+
     return {
-      symbol: String(raw.symbol ?? ""),
-      lastPrice: Number(raw.lastPrice ?? 0),
-      movingAverage5s: Number(raw.movingAverage5s ?? 0),
-      volatility: Number(raw.volatility ?? 0),
-      timestamp: String(raw.timestamp ?? ""),
+      symbol,
+      lastPrice: Number(raw.lastPrice ?? raw.LastPrice ?? 0),
+      movingAverage5s: Number(raw.movingAverage5s ?? raw.MovingAverage5s ?? 0),
+      volatility: Number(raw.volatility ?? raw.Volatility ?? 0),
+      timestamp: String(raw.timestamp ?? raw.Timestamp ?? ""),
     }
   } catch {
     return null
   }
 }
 
-export function useTradingHub() {
-  const [connectionState, setConnectionState] = useState<signalR.HubConnectionState>(
-    signalR.HubConnectionState.Disconnected
-  )
-  const [pointsBySymbol, setPointsBySymbol] = useState<Record<string, PricePoint[]>>({})
-  const [lastUpdateBySymbol, setLastUpdateBySymbol] = useState<Record<string, AssetAnalytics>>({})
-  const connectionRef = useRef<signalR.HubConnection | null>(null)
-  const hasReceivedRef = useRef(false)
-  const receiveCountRef = useRef(0)
+let connection: signalR.HubConnection | null = null
 
-  const appendPoint = useCallback((analytics: AssetAnalytics) => {
-    if (!hasReceivedRef.current && import.meta.env.DEV) {
-      hasReceivedRef.current = true
-      console.info("[TradingHub] First price update received:", analytics.symbol)
-    }
-    const point: PricePoint = {
-      time: analytics.timestamp,
-      price: analytics.lastPrice,
-      ma: analytics.movingAverage5s,
-      volatility: analytics.volatility,
-    }
-    setPointsBySymbol((prev) => {
-      const list = [...(prev[analytics.symbol] ?? []), point]
-      if (list.length > MAX_POINTS_PER_SYMBOL) list.shift()
-      return { ...prev, [analytics.symbol]: list }
-    })
-    setLastUpdateBySymbol((prev) => ({ ...prev, [analytics.symbol]: analytics }))
-  }, [])
-
-  useEffect(() => {
-    const connection = new signalR.HubConnectionBuilder()
+function ensureConnection() {
+  if (!connection) {
+    const conn = new signalR.HubConnectionBuilder()
       .withUrl(HUB_URL)
       .withAutomaticReconnect()
       .configureLogging(signalR.LogLevel.Warning)
       .build()
 
-    connection.on("ReceivePriceUpdate", (...args: unknown[]) => {
-      const n = receiveCountRef.current + 1
-      receiveCountRef.current = n
-      if (n <= 3) {
-        console.info("[TradingHub] ReceivePriceUpdate #" + n, "args length:", args?.length, "arg0 type:", typeof args?.[0], args?.[0])
+    conn.on("ReceivePriceUpdate", (payload: unknown) => {
+      const analytics = toAnalytics(payload)
+      if (!analytics) return
+
+      const point: PricePoint = {
+        time: analytics.timestamp,
+        price: analytics.lastPrice,
+        ma: analytics.movingAverage5s,
+        volatility: analytics.volatility,
       }
-      const raw = args[0]
-      const value = typeof raw === "string" ? raw : JSON.stringify(raw)
-      const analytics = typeof raw === "object" && raw !== null
-        ? parsePayload(JSON.stringify(raw))
-        : parsePayload(value)
-      if (!analytics && n <= 3) {
-        console.warn("[TradingHub] parsePayload returned null for value:", value?.slice?.(0, 100))
-      }
-      if (analytics) appendPoint(analytics)
+
+      const current = store.pointsBySymbol[analytics.symbol] ?? []
+      const nextPoints = [...current, point]
+      if (nextPoints.length > MAX_POINTS_PER_SYMBOL) nextPoints.shift()
+
+      store.pointsBySymbol = { ...store.pointsBySymbol, [analytics.symbol]: nextPoints }
+      store.lastUpdateBySymbol = { ...store.lastUpdateBySymbol, [analytics.symbol]: analytics }
+      emit()
     })
 
-    connectionRef.current = connection
+    conn.onreconnecting(() => {
+      store.connectionState = conn.state
+      emit()
+    })
+    conn.onreconnected(() => {
+      store.connectionState = conn.state
+      emit()
+    })
+    conn.onclose(() => {
+      store.connectionState = conn.state
+      emit()
+    })
 
-    connection
+    connection = conn
+  }
+
+  const conn = connection
+  if (!conn) return
+
+  if (conn.state === signalR.HubConnectionState.Disconnected) {
+    store.connectionState = signalR.HubConnectionState.Connecting
+    emit()
+
+    conn
       .start()
       .then(() => {
-        if (connectionRef.current === connection) setConnectionState(connection.state)
+        store.connectionState = conn.state
+        emit()
       })
       .catch((err) => {
-        // Ignore "stopped during negotiation" from React Strict Mode double-mount
+        store.connectionState = signalR.HubConnectionState.Disconnected
+        emit()
+
+        // Ignore expected dev-only errors from React Strict Mode double-mount
         if (err?.message?.includes("negotiation") || err?.name === "AbortError") return
-        console.error(err)
+        // eslint-disable-next-line no-console
+        console.error("[TradingHub] Failed to start connection:", err)
       })
+  }
+}
 
-    const handler = () => {
-      if (connectionRef.current === connection) setConnectionState(connection.state)
+function subscribe(callback: () => void) {
+  subscribers.add(callback)
+  return () => {
+    subscribers.delete(callback)
+  }
+}
+
+function getSnapshot(): Snapshot {
+  return store
+}
+
+function getServerSnapshot(): Snapshot {
+  return {
+    connectionState: signalR.HubConnectionState.Disconnected,
+    pointsBySymbol: {},
+    lastUpdateBySymbol: {},
+  }
+}
+
+export function useTradingHub() {
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      ensureConnection()
     }
-    connection.onreconnecting(handler)
-    connection.onreconnected(handler)
-    connection.onclose(handler)
+  }, [])
 
-    return () => {
-      connectionRef.current = null
-      // Delay stop so we don't abort during negotiation (React Strict Mode mounts, unmounts, remounts)
-      setTimeout(() => {
-        connection
-          .stop()
-          .catch((err) => {
-            if (err?.message?.includes("negotiation") || err?.name === "AbortError") return
-            console.error(err)
-          })
-      }, 200)
-    }
-  }, [appendPoint])
-
-  return { connectionState, pointsBySymbol, lastUpdateBySymbol }
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
+  return snapshot
 }
