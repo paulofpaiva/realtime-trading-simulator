@@ -32,7 +32,7 @@ export function RealtimeChart({ data, symbol }: RealtimeChartProps) {
 
   if (!symbol) {
     return (
-      <div className="flex h-[300px] items-center justify-center rounded-lg border border-border bg-muted/30 text-muted-foreground">
+      <div className="flex h-[300px] items-center justify-center rounded-xl bg-slate-100/50 text-slate-500 dark:bg-slate-800/30 dark:text-slate-400">
         Select a symbol to view the chart
       </div>
     )
@@ -51,57 +51,30 @@ export function RealtimeChart({ data, symbol }: RealtimeChartProps) {
             axisLine={false}
           />
           <YAxis
-            yAxisId="price"
             tick={{ fontSize: 11 }}
             tickLine={false}
             axisLine={false}
             tickFormatter={(v) => v.toFixed(2)}
-          />
-          <YAxis
-            yAxisId="vol"
-            orientation="right"
-            tick={{ fontSize: 11 }}
-            tickLine={false}
-            axisLine={false}
-            tickFormatter={(v) => v.toFixed(4)}
+            domain={["auto", "auto"]}
           />
           <Tooltip
             labelFormatter={(_, payload) =>
               (payload?.[0] as { payload?: { timeLabel?: string } } | undefined)?.payload?.timeLabel ?? ""
             }
-            formatter={(value: unknown, name?: string) => [
-              typeof value === "number" ? value.toFixed(name === "volatility" ? 4 : 2) : String(value),
-              name === "price" ? "Price" : name === "ma" ? "5s average" : "Volatility",
+            formatter={(value: unknown) => [
+              typeof value === "number" ? value.toFixed(2) : String(value),
+              "Price",
             ]}
           />
           <Legend />
           <Line
-            yAxisId="price"
             type="monotone"
             dataKey="price"
             name="Price"
-            stroke="var(--chart-1)"
-            strokeWidth={2}
+            stroke="rgb(16 185 129)"
+            strokeWidth={2.5}
             dot={false}
-          />
-          <Line
-            yAxisId="price"
-            type="monotone"
-            dataKey="ma"
-            name="5s average"
-            stroke="var(--chart-2)"
-            strokeWidth={1.5}
-            strokeDasharray="4 4"
-            dot={false}
-          />
-          <Line
-            yAxisId="vol"
-            type="monotone"
-            dataKey="volatility"
-            name="Volatility"
-            stroke="var(--chart-3)"
-            strokeWidth={1.5}
-            dot={false}
+            isAnimationActive={false}
           />
         </LineChart>
       </ResponsiveContainer>

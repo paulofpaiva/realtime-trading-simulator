@@ -5,11 +5,11 @@ type ConnectionStatusProps = {
 }
 
 const labels: Record<HubConnectionState, string> = {
-  [HubConnectionState.Connected]: "Conectado",
-  [HubConnectionState.Connecting]: "Conectando…",
-  [HubConnectionState.Disconnected]: "Desconectado",
-  [HubConnectionState.Disconnecting]: "Desconectando…",
-  [HubConnectionState.Reconnecting]: "Reconectando…",
+  [HubConnectionState.Connected]: "Connected",
+  [HubConnectionState.Connecting]: "Connecting…",
+  [HubConnectionState.Disconnected]: "Disconnected",
+  [HubConnectionState.Disconnecting]: "Disconnecting…",
+  [HubConnectionState.Reconnecting]: "Reconnecting…",
 }
 
 const colors: Record<HubConnectionState, string> = {
@@ -22,12 +22,12 @@ const colors: Record<HubConnectionState, string> = {
 
 export function ConnectionStatus({ state }: ConnectionStatusProps) {
   return (
-    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+    <div className="flex items-center gap-2 rounded-lg border border-slate-200/80 bg-white/60 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-800/60">
       <span
         className={`inline-block h-2 w-2 rounded-full ${colors[state]}`}
         aria-hidden
       />
-      <span>{labels[state]}</span>
+      <span className="font-medium text-slate-700 dark:text-slate-300">{labels[state]}</span>
     </div>
   )
 }

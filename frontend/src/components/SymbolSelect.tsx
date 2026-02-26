@@ -20,7 +20,7 @@ export function SymbolSelect({ value, onValueChange, disabled }: SymbolSelectPro
       onValueChange={(v) => v && onValueChange(v as Symbol)}
       disabled={disabled}
     >
-      <SelectTrigger className="w-[140px]">
+      <SelectTrigger className="w-full border-slate-200 bg-slate-50 font-medium dark:border-slate-700 dark:bg-slate-800/50">
         <SelectValue placeholder="Symbol" />
       </SelectTrigger>
       <SelectContent>

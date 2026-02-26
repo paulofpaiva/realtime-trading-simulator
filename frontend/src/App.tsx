@@ -13,30 +13,50 @@ function App() {
   const lastForSymbol = symbol ? lastUpdateBySymbol[symbol] ?? null : null
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-6">
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-xl font-semibold">Real-Time Trading Simulator</h1>
-        <ConnectionStatus state={connectionState} />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/30">
+      <header className="border-b border-slate-200/80 bg-white/80 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/80">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 md:px-6 md:py-5">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white md:text-2xl">
+              Real-Time Trading Simulator
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Live price streaming with Kafka & SignalR
+            </p>
+          </div>
+          <ConnectionStatus state={connectionState} />
+        </div>
       </header>
 
-      <div className="mx-auto flex max-w-4xl flex-col gap-6">
-        <div className="flex flex-wrap items-end gap-4">
-          <div>
-            <label className="mb-1.5 block text-sm text-muted-foreground">
-              Symbol
-            </label>
-            <SymbolSelect value={symbol} onValueChange={setSymbol} />
-          </div>
-          <PriceSummary analytics={lastForSymbol} symbol={symbol} />
-        </div>
+      <main className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
+        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+          <aside className="flex flex-col gap-4">
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+              <label className="mb-3 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                Select Symbol
+              </label>
+              <SymbolSelect value={symbol} onValueChange={setSymbol} />
+            </div>
+            <PriceSummary analytics={lastForSymbol} symbol={symbol} />
+          </aside>
 
-        <div className="rounded-lg border border-border bg-card p-4">
-          <h2 className="mb-2 text-sm font-medium text-muted-foreground">
-            Real-time price and volatility
-          </h2>
-          <RealtimeChart data={points} symbol={symbol} />
+          <section className="min-w-0">
+            <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+              <div className="border-b border-slate-200/80 bg-gradient-to-r from-slate-50 to-slate-100/50 px-5 py-4 dark:border-slate-800 dark:from-slate-800/50 dark:to-slate-800/30">
+                <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  Price Chart
+                </h2>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                  Real-time price updates for {symbol ?? "selected symbol"}
+                </p>
+              </div>
+              <div className="p-5">
+                <RealtimeChart data={points} symbol={symbol} />
+              </div>
+            </div>
+          </section>
         </div>
-      </div>
+      </main>
     </div>
   )
 }
