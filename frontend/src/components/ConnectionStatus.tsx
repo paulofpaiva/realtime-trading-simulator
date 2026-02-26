@@ -1,23 +1,23 @@
-import type { HubConnectionState } from "@microsoft/signalr"
+import { HubConnectionState } from "@microsoft/signalr"
 
 type ConnectionStatusProps = {
   state: HubConnectionState
 }
 
 const labels: Record<HubConnectionState, string> = {
-  Connected: "Connected",
-  Connecting: "Connecting",
-  Disconnected: "Disconnected",
-  Disconnecting: "Disconnecting",
-  Reconnecting: "Reconnecting",
+  [HubConnectionState.Connected]: "Conectado",
+  [HubConnectionState.Connecting]: "Conectando…",
+  [HubConnectionState.Disconnected]: "Desconectado",
+  [HubConnectionState.Disconnecting]: "Desconectando…",
+  [HubConnectionState.Reconnecting]: "Reconectando…",
 }
 
 const colors: Record<HubConnectionState, string> = {
-  Connected: "bg-green-500",
-  Connecting: "bg-yellow-500",
-  Disconnected: "bg-red-500",
-  Disconnecting: "bg-yellow-500",
-  Reconnecting: "bg-yellow-500",
+  [HubConnectionState.Connected]: "bg-green-500",
+  [HubConnectionState.Connecting]: "bg-yellow-500",
+  [HubConnectionState.Disconnected]: "bg-red-500",
+  [HubConnectionState.Disconnecting]: "bg-yellow-500",
+  [HubConnectionState.Reconnecting]: "bg-yellow-500",
 }
 
 export function ConnectionStatus({ state }: ConnectionStatusProps) {

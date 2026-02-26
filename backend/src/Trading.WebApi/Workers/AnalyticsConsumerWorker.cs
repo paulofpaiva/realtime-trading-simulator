@@ -1,14 +1,14 @@
 using System.Text.Json;
 using Confluent.Kafka;
-using Microsoft.AspNetCore.SignalR;
 using Trading.Contracts;
 using Trading.WebApi.Hubs;
+using Trading.WebApi.Services;
 
 namespace Trading.WebApi.Workers;
 
 public class AnalyticsConsumerWorker : BackgroundService
 {
-    private readonly IHubContext<TradingHub> _hub;
+    private readonly LatestAnalyticsStore _store;
     private readonly IConfiguration _config;
     private readonly ILogger<AnalyticsConsumerWorker> _logger;
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -18,19 +18,17 @@ public class AnalyticsConsumerWorker : BackgroundService
     };
 
     public AnalyticsConsumerWorker(
-        IHubContext<TradingHub> hub,
+        LatestAnalyticsStore store,
         IConfiguration config,
         ILogger<AnalyticsConsumerWorker> logger)
     {
-        _hub = hub;
+        _store = store;
         _config = config;
         _logger = logger;
     }
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Run Kafka consumption on a thread-pool thread so host startup is never blocked
-        // (Subscribe/Consume can block when Kafka is unreachable)
         return Task.Run(() => RunConsumerAsync(stoppingToken), stoppingToken);
     }
 
@@ -52,8 +50,7 @@ public class AnalyticsConsumerWorker : BackgroundService
         using var consumer = new ConsumerBuilder<Ignore, string>(conf).Build();
         consumer.Subscribe(topic);
         _logger.LogInformation("AnalyticsConsumer subscribed to {Topic}", topic);
-
-        var messageCount = 0;
+        var broadcastCount = 0;
         try
         {
             while (!stoppingToken.IsCancellationRequested)
@@ -62,13 +59,13 @@ public class AnalyticsConsumerWorker : BackgroundService
                 {
                     var result = consumer.Consume(TimeSpan.FromSeconds(1));
                     if (result?.Message?.Value == null) continue;
-
                     var json = result.Message.Value;
                     if (string.IsNullOrWhiteSpace(json)) continue;
 
+                    AssetAnalytics? analytics;
                     try
                     {
-                        var _ = JsonSerializer.Deserialize<AssetAnalytics>(json, JsonOptions);
+                        analytics = JsonSerializer.Deserialize<AssetAnalytics>(json, JsonOptions);
                     }
                     catch
                     {
@@ -76,10 +73,13 @@ public class AnalyticsConsumerWorker : BackgroundService
                         continue;
                     }
 
-                    await _hub.Clients.All.SendAsync("ReceivePriceUpdate", json, stoppingToken);
-                    messageCount++;
-                    if (messageCount <= 3 || messageCount % 500 == 0)
-                        _logger.LogInformation("SignalR broadcast #{Count}: {Json}", messageCount, json[..Math.Min(json.Length, 120)]);
+                    if (analytics != null)
+                    {
+                        broadcastCount++;
+                        if (broadcastCount <= 3 || broadcastCount % 100 == 0)
+                            _logger.LogInformation("Analytics #{Count}: {Symbol} @ {LastPrice}", broadcastCount, analytics.Symbol, analytics.LastPrice);
+                        _store.Set(analytics);
+                    }
                 }
                 catch (ConsumeException ex)
                 {

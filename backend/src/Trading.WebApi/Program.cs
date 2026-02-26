@@ -1,4 +1,5 @@
 using Trading.WebApi.Hubs;
+using Trading.WebApi.Services;
 using Trading.WebApi.Workers;
 
 Console.WriteLine("WebApi: starting...");
@@ -6,6 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.WebHost.UseUrls("http://127.0.0.1:5001");
 
+builder.Services.AddSingleton<LatestAnalyticsStore>();
 builder.Services.AddOpenApi();
 builder.Services.AddSignalR()
     .AddJsonProtocol(options =>
@@ -15,7 +17,7 @@ builder.Services.AddSignalR()
 builder.Services.AddCors(options =>
 {
     var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-        ?? new[] { "http://localhost:5173", "http://127.0.0.1:5173" };
+        ?? new[] { "http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173", "http://127.0.0.1:5174" };
     options.AddDefaultPolicy(policy =>
     {
         policy.WithOrigins(origins)

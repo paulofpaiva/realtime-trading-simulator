@@ -2,8 +2,11 @@ import { useEffect, useSyncExternalStore } from "react"
 import * as signalR from "@microsoft/signalr"
 import type { AssetAnalytics } from "@/types/analytics"
 
-const HUB_URL = import.meta.env.VITE_HUB_URL ?? "http://localhost:5001/tradingHub"
+const HUB_URL =
+  import.meta.env.VITE_HUB_URL ??
+  (typeof window !== "undefined" ? `${window.location.origin}/tradingHub` : "http://localhost:5001/tradingHub")
 const MAX_POINTS_PER_SYMBOL = 100
+const POLL_INTERVAL_MS = 300
 
 export type PricePoint = { time: string; price: number; ma: number; volatility: number }
 
@@ -21,7 +24,14 @@ const store: Snapshot = {
 
 const subscribers = new Set<() => void>()
 
+let cachedSnapshot: Snapshot = {
+  connectionState: signalR.HubConnectionState.Disconnected,
+  pointsBySymbol: {},
+  lastUpdateBySymbol: {},
+}
+
 function emit() {
+  cachedSnapshot = { ...store }
   for (const cb of subscribers) cb()
 }
 
@@ -50,33 +60,57 @@ function toAnalytics(payload: unknown): AssetAnalytics | null {
 }
 
 let connection: signalR.HubConnection | null = null
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+function applyAnalytics(analytics: AssetAnalytics) {
+  const last = store.lastUpdateBySymbol[analytics.symbol]
+  if (last?.timestamp === analytics.timestamp) return
+  const point: PricePoint = {
+    time: analytics.timestamp,
+    price: analytics.lastPrice,
+    ma: analytics.movingAverage5s,
+    volatility: analytics.volatility,
+  }
+  const current = store.pointsBySymbol[analytics.symbol] ?? []
+  const nextPoints = [...current, point]
+  if (nextPoints.length > MAX_POINTS_PER_SYMBOL) nextPoints.shift()
+  store.pointsBySymbol = { ...store.pointsBySymbol, [analytics.symbol]: nextPoints }
+  store.lastUpdateBySymbol = { ...store.lastUpdateBySymbol, [analytics.symbol]: analytics }
+  emit()
+}
+
+function startPolling(conn: signalR.HubConnection) {
+  if (pollTimer) return
+  pollTimer = setInterval(async () => {
+    if (conn.state !== signalR.HubConnectionState.Connected) return
+    try {
+      const items = (await conn.invoke("GetLatestAnalytics")) as unknown[]
+      if (Array.isArray(items)) {
+        for (const item of items) {
+          const analytics = toAnalytics(item)
+          if (analytics) applyAnalytics(analytics)
+        }
+      }
+    } catch {
+      // ignore poll errors
+    }
+  }, POLL_INTERVAL_MS)
+}
 
 function ensureConnection() {
   if (!connection) {
     const conn = new signalR.HubConnectionBuilder()
       .withUrl(HUB_URL)
       .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.Warning)
+      .configureLogging(
+        import.meta.env.DEV ? signalR.LogLevel.Information : signalR.LogLevel.Warning
+      )
       .build()
 
-    conn.on("ReceivePriceUpdate", (payload: unknown) => {
+    conn.on("ReceivePriceUpdate", (...args: unknown[]) => {
+      const payload = args.length > 0 ? args[0] : args
       const analytics = toAnalytics(payload)
-      if (!analytics) return
-
-      const point: PricePoint = {
-        time: analytics.timestamp,
-        price: analytics.lastPrice,
-        ma: analytics.movingAverage5s,
-        volatility: analytics.volatility,
-      }
-
-      const current = store.pointsBySymbol[analytics.symbol] ?? []
-      const nextPoints = [...current, point]
-      if (nextPoints.length > MAX_POINTS_PER_SYMBOL) nextPoints.shift()
-
-      store.pointsBySymbol = { ...store.pointsBySymbol, [analytics.symbol]: nextPoints }
-      store.lastUpdateBySymbol = { ...store.lastUpdateBySymbol, [analytics.symbol]: analytics }
-      emit()
+      if (analytics) applyAnalytics(analytics)
     })
 
     conn.onreconnecting(() => {
@@ -88,6 +122,10 @@ function ensureConnection() {
       emit()
     })
     conn.onclose(() => {
+      if (pollTimer) {
+        clearInterval(pollTimer)
+        pollTimer = null
+      }
       store.connectionState = conn.state
       emit()
     })
@@ -107,6 +145,7 @@ function ensureConnection() {
       .then(() => {
         store.connectionState = conn.state
         emit()
+        startPolling(conn)
       })
       .catch((err) => {
         store.connectionState = signalR.HubConnectionState.Disconnected
@@ -128,7 +167,7 @@ function subscribe(callback: () => void) {
 }
 
 function getSnapshot(): Snapshot {
-  return store
+  return cachedSnapshot
 }
 
 function getServerSnapshot(): Snapshot {
