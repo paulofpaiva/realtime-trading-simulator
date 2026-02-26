@@ -14,7 +14,7 @@ Real-time asset price simulator: generates synthetic quotes, aggregates metrics 
   - volatility (standard deviation over the window).
 - **Publishes** these metrics to the `asset-analytics` topic.
 - **Web API** consumes `asset-analytics` and pushes each update to all connected clients via **SignalR** (method `ReceivePriceUpdate`).
-- **(In progress)** React frontend connected to the SignalR hub to display real-time charts.
+- **React frontend** connected to the SignalR hub to display real-time charts.
 
 ---
 
@@ -25,7 +25,7 @@ Real-time asset price simulator: generates synthetic quotes, aggregates metrics 
 | Backend       | .NET 9, ASP.NET Core, SignalR, Confluent.Kafka, BackgroundService |
 | Contracts     | `Trading.Contracts` (AssetPrice, AssetAnalytics) |
 | Services      | Trading.PriceGenerator, Trading.Aggregator, Trading.WebApi |
-| Frontend      | React 18+, Vite, TypeScript, SignalR client, Recharts or ApexCharts (planned) |
+| Frontend      | React 18+, Vite, TypeScript, SignalR client, Recharts |
 | Infra         | Kafka, Zookeeper, Kafka UI, PostgreSQL 16, Docker / Docker Compose |
 | Config        | `.env` (ports, credentials); appsettings in .NET projects |
 
@@ -34,7 +34,7 @@ Real-time asset price simulator: generates synthetic quotes, aggregates metrics 
 ## Architecture (data flow)
 
 ```
-PriceGenerator  →  [Kafka: asset-price]  →  Aggregator  →  [Kafka: asset-analytics]  →  WebApi  →  SignalR Hub  →  (Frontend)
+PriceGenerator  →  [Kafka: asset-price]  →  Aggregator  →  [Kafka: asset-analytics]  →  WebApi  →  SignalR Hub  →  Frontend
 ```
 
 - **PriceGenerator**: Worker that publishes to `asset-price`.
@@ -54,7 +54,7 @@ realtime-trading-simulator/
 │       ├── Trading.PriceGenerator/
 │       ├── Trading.Aggregator/
 │       └── Trading.WebApi/     # API + SignalR hub
-├── frontend/                   # React + Vite (in progress)
+├── frontend/                   # React + Vite
 ├── infra/                      # Docker Compose (Kafka, Zookeeper, Kafka UI, Postgres)
 ├── .env.example                # Example environment variables
 ├── .env                        # Your local env (not versioned)
@@ -67,7 +67,7 @@ realtime-trading-simulator/
 
 - **Docker** and **Docker Compose v2** (for infrastructure).
 - **.NET 9 SDK** (to run backend services locally).
-- *(Optional)* Node.js 18+ when the frontend is available.
+- **Node.js 18+** (for frontend).
 
 ---
 
@@ -118,18 +118,29 @@ dotnet run
 
 ```bash
 cd backend/src/Trading.WebApi
-dotnet run
+dotnet build
+dotnet run --no-build
 ```
 
 The WebApi exposes the SignalR hub at `http://localhost:5000/tradingHub` (or the port set in `ASPNETCORE_URLS`).
 
-### 3. Verify the flow
+### 3. Run frontend
+
+```bash
+cd frontend
+cp .env.example .env
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`. Set `VITE_HUB_URL` in `.env` if the hub runs on a different URL (default `http://localhost:5000`).
+
+### 4. Verify the flow
 
 - **Kafka UI**: `http://localhost:8080`  
   Topics `asset-price` and `asset-analytics` should receive messages in real time.
 - **PostgreSQL**: `localhost:5432`, database `trading`, user/password from `.env` (default `trading`/`trading`).
-
-When the frontend is ready, it will connect to the hub and display real-time charts.
+- **Frontend**: `http://localhost:5173` — real-time charts and connection status.
 
 ---
 
@@ -147,10 +158,10 @@ The `.env.example` file lists the variables used by `infra/docker-compose.yml`:
 | POSTGRES_USER         | PostgreSQL user                  | trading |
 | POSTGRES_PASSWORD     | PostgreSQL password              | trading |
 | POSTGRES_PORT         | PostgreSQL port                  | 5432    |
-| WEBAPI_PORT           | WebApi port (future)             | 5000    |
-| FRONTEND_PORT         | Frontend port (future)           | 5173    |
+| WEBAPI_PORT           | WebApi port                      | 5000    |
+| FRONTEND_PORT         | Frontend port                    | 5173    |
 
-Copy `.env.example` to `.env` and adjust if needed. .NET services read Kafka and Postgres from `appsettings.json` (and from environment variables when running in Docker, when configured).
+Frontend `.env`: `VITE_HUB_URL` — SignalR hub URL (default `http://localhost:5000`).
 
 ---
 
@@ -163,8 +174,8 @@ Copy `.env.example` to `.env` and adjust if needed. .NET services read Kafka and
 | Kafka (internal) | 29092       | Docker network clients |
 | Kafka UI      | 8080           | Web UI                 |
 | PostgreSQL    | 5432           | Database               |
-| WebApi        | 5000           | API + SignalR hub       |
-| Frontend      | 5173           | React app (future)      |
+| WebApi        | 5000           | API + SignalR hub      |
+| Frontend      | 5173           | React app               |
 
 ---
 

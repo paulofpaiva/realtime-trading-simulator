@@ -1,10 +1,9 @@
 namespace Trading.Contracts;
 
-public sealed class AssetAnalytics
-{
-    public required string Symbol { get; init; }
-    public decimal LastPrice { get; init; }
-    public decimal MovingAverage5s { get; init; }
-    public decimal Volatility { get; init; }
-    public DateTime Timestamp { get; init; }
-}
+public record AssetAnalytics(
+    string Symbol,
+    double LastPrice,
+    double MovingAverage5s,
+    double Volatility,
+    string Timestamp
+);
